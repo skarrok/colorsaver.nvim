@@ -31,6 +31,7 @@ local log = logger.new("warn", "colorsaver")
 --
 local function save_colorscheme(new_scheme)
   local colorscheme_name = new_scheme
+  local background = vim.o.background
   if not vim.tbl_contains(vim.fn.getcompletion("", "color"), colorscheme_name) then
     log:warn("Didn't find " .. colorscheme_name .. " in the list of colorschemes")
     return false
@@ -43,7 +44,7 @@ local function save_colorscheme(new_scheme)
   end
 
   local success, write_err = pcall(function()
-    file:write(colorscheme_name)
+    file:write(colorscheme_name, ":", background)
   end)
 
   local close_ok, close_err = pcall(function()
@@ -101,10 +102,26 @@ local function load_colorscheme()
     return false
   end
 
-  colorscheme = content ~= "" and content or colorscheme
+  if content == "" then
+    return false
+  end
+
+  local content_parts = vim.split(content, ":")
+  if #content_parts ~= 2 then
+    log:error("Invalid data found in " .. color_file_path .. ".")
+    return false
+  end
+
+  colorscheme = content_parts[1] or colorscheme
+  local background = content_parts[2]
 
   if not (colorscheme and colorscheme ~= "") then
     log:error("Invalid colorscheme name found in " .. color_file_path .. ".")
+    return false
+  end
+
+  if background ~= "dark" and background ~= "light" then
+    log:error("Invalid background found in " .. color_file_path .. "." .. background)
     return false
   end
 
@@ -122,6 +139,7 @@ local function load_colorscheme()
     log:error("Failed to apply colorscheme '" .. colorscheme .. "': " .. cmd_err)
     return false
   end
+  vim.o.background = background
 
   -- and re-enable the autocommands
   if autocmd_group then
